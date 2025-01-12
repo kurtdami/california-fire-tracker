@@ -30,8 +30,8 @@ export interface EvacuationFeature {
   properties: {
     zone_id: string;
     zone_status: string;
+    zone_status_reason: string | null;
     last_updated: number;
-    zone_status_reason: string;
     county_name: string;
   };
 }

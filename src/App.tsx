@@ -55,10 +55,10 @@ function App() {
       if (!response.ok) throw new Error('Failed to fetch evacuation data');
       
       const data: EvacuationData = await response.json();
-      console.log('First evacuation zone data:', data.features[0]?.properties);
-      console.log('Sample last_updated type:', typeof data.features[0]?.properties.last_updated);
       const activeEvacuations = data.features.filter(
-        (zone: EvacuationFeature) => zone.properties.zone_status === "Evacuation Order"
+        (zone: EvacuationFeature) => 
+          zone.properties.zone_status === "Evacuation Order" && 
+          zone.properties.zone_status_reason?.toLowerCase().indexOf('flooding') === -1
       );
       setEvacuationData(activeEvacuations);
     } catch (err) {
