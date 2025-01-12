@@ -7,12 +7,15 @@ export interface FireFeature {
   properties: {
     Name: string;
     IsActive: boolean;
+    Final: boolean;
     Location: string;
     AcresBurned: number;
     PercentContained: number;
     Started: string;
     Updated: string;
     County: string;
+    Latitude: number;
+    Longitude: number;
   };
 }
 

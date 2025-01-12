@@ -23,6 +23,7 @@ function App() {
   const [closestEvacZone, setClosestEvacZone] = useState<{
     zone: EvacuationFeature;
     distance: number;
+    associatedFire: FireFeature | null;
   } | null>(null);
 
   const fetchFireData = async () => {
@@ -116,36 +117,81 @@ function App() {
       const startTime = performance.now();
       let totalPoints = 0;
 
+      // First find the closest evacuation zone to the user
       const zones = evacuationData.map((zone: EvacuationFeature) => {
         const points = zone.geometry.coordinates[0];
         totalPoints += points.length;
-        const distances = points.map(([lon, lat]: [number, number]) => 
-          calculateDistance(
+        
+        // Find the closest point in this zone to the user
+        let minDistance = Infinity;
+        let closestPoint: [number, number] | null = null;
+        
+        points.forEach(([lon, lat]: [number, number]) => {
+          const distance = calculateDistance(
             location.coords.latitude,
             location.coords.longitude,
             lat,
             lon
-          )
-        );
+          );
+          if (distance < minDistance) {
+            minDistance = distance;
+            closestPoint = [lon, lat];
+          }
+        });
+        
         return {
           zone,
-          distance: Math.min(...distances)
+          distance: minDistance,
+          closestPoint
         };
       });
 
-      const closest = zones.reduce((prev: { zone: EvacuationFeature; distance: number }, current: { zone: EvacuationFeature; distance: number }) => 
+      const closestZone = zones.reduce((prev, current) => 
         prev.distance < current.distance ? prev : current
       );
+
+      // Use the closest point to find the nearest active fire
+      if (fireData.length > 0 && closestZone.closestPoint) {
+        let closestFireToZone = null;
+        let minDistanceToFire = Infinity;
+
+        const [lon, lat] = closestZone.closestPoint;
+        
+        fireData.forEach(fire => {
+          if (!fire.properties.Final) {
+            const distanceToFire = calculateDistance(
+              lat,
+              lon,
+              fire.properties.Latitude,
+              fire.properties.Longitude
+            );
+            if (distanceToFire < minDistanceToFire) {
+              minDistanceToFire = distanceToFire;
+              closestFireToZone = fire;
+            }
+          }
+        });
+
+        setClosestEvacZone({
+          zone: closestZone.zone,
+          distance: closestZone.distance,
+          associatedFire: closestFireToZone
+        });
+      } else {
+        setClosestEvacZone({
+          zone: closestZone.zone,
+          distance: closestZone.distance,
+          associatedFire: null
+        });
+      }
 
       const endTime = performance.now();
       setComputationStats({
         totalPoints,
         computationTime: endTime - startTime
       });
-
-      setClosestEvacZone(closest);
     }
-  }, [location, evacuationData]);
+  }, [location, evacuationData, fireData]);
 
   const handleRefresh = () => {
     getLocation();
@@ -228,7 +274,7 @@ function App() {
                   ? 'text-red-900' 
                   : 'text-blue-900'
               }`}>
-                <p><strong>Zone Name:</strong> {closestEvacZone.zone.properties.zone_id} ({closestFire?.fire.properties.Name || 'Unknown Fire'})</p>
+                <p><strong>Zone Name:</strong> {closestEvacZone.zone.properties.zone_id} {closestEvacZone.associatedFire ? `(${closestEvacZone.associatedFire.properties.Name})` : ''}</p>
                 <p><strong>Distance:</strong> {closestEvacZone.distance.toFixed(1)} miles</p>
                 <p><strong>Status:</strong> {closestEvacZone.zone.properties.zone_status}</p>
                 <p><strong>Updated:</strong> {(() => {
