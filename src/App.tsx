@@ -5,6 +5,7 @@ import { LoadingSpinner } from './components/LoadingSpinner';
 import { calculateDistance } from './utils/distance';
 import type { FireData, FireFeature, EvacuationData, EvacuationFeature } from './types';
 import { Analytics } from '@vercel/analytics/react';
+import { SpeedInsights } from '@vercel/speed-insights/react';
 
 function App() {
   const [location, setLocation] = useState<GeolocationPosition | null>(null);
@@ -219,6 +220,7 @@ function App() {
   return (
     <div className="min-h-screen bg-gray-100 p-4">
       <Analytics />
+      <SpeedInsights />
       <div className="max-w-2xl mx-auto">
         <div className="bg-white rounded-lg shadow-md p-6">
           <div className="flex justify-between items-center mb-6">
