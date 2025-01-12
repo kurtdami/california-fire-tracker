@@ -318,7 +318,7 @@ function App() {
 
           <div className="text-sm text-gray-500 space-y-1">
             <div>
-              Showing data for {fireData.length} active fires and {evacuationData.length} evacuation zones in California
+              Showing data for {fireData.filter(fire => !fire.properties.Final).length} active fires and {evacuationData.length} fire-related evacuation zones in California
             </div>
             {computationStats && (
               <div className="text-xs text-gray-400">
