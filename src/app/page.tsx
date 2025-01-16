@@ -103,15 +103,26 @@ export default function Home() {
     );
   };
 
-  const fetchAirQualityData = async (lat: number, lon: number) => {
+  const fetchAirQualityData = async (latitude: number, longitude: number) => {
     try {
-      const response = await fetch(`/api/air-quality?latitude=${lat}&longitude=${lon}`);
-      if (!response.ok) throw new Error('Failed to fetch air quality data');
+      const response = await fetch(
+        `/api/air-quality?lat=${latitude}&lng=${longitude}`,
+        {
+          cache: 'force-cache'
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error('Failed to fetch air quality data');
+      }
+
       const data = await response.json();
       setAirQualityData(data);
-    } catch (err) {
-      console.error('Air quality data fetch error:', err);
+      return data;
+    } catch (error) {
+      console.error('Air quality data fetch error:', error);
       setError((prev) => prev ? `${prev}. Also failed to fetch air quality data` : 'Failed to fetch air quality data');
+      throw error;
     }
   };
 
@@ -274,9 +285,12 @@ export default function Home() {
         </div>
 
         {/* Add Air Quality Display */}
-        {airQualityData.length > 0 && (
+        {location && (
           <div className="mb-6">
-            <AirQualityDisplay airQualityData={airQualityData} />
+            <AirQualityDisplay 
+              lat={location.coords.latitude}
+              lng={location.coords.longitude}
+            />
           </div>
         )}
 
