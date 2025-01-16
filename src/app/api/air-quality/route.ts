@@ -1,23 +1,50 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 
-/**
- * Air Quality API Route - DISABLED
- * To be implemented later after initial deployment
- * 
- * TODO:
- * 1. Register at https://docs.airnowapi.org/
- * 2. Add AIRNOW_API_KEY to .env.local
- * 3. Review rate limits and terms
- * 4. Test thoroughly
- */
+const AIR_QUALITY_API_KEY = process.env.AIR_QUALITY_API_KEY;
+const AIRNOW_BASE_URL = 'https://www.airnowapi.org/aq/observation/latLong/current';
 
-// Temporary disabled route that returns 501 Not Implemented
-export async function GET() {
-  return NextResponse.json(
-    { 
-      error: 'Air quality API not yet implemented',
-      status: 'disabled'
-    },
-    { status: 501 }
-  );
+export async function GET(request: NextRequest) {
+  try {
+    const searchParams = request.nextUrl.searchParams;
+    const latitude = searchParams.get('latitude');
+    const longitude = searchParams.get('longitude');
+
+    if (!latitude || !longitude) {
+      return NextResponse.json(
+        { error: 'Latitude and longitude are required parameters' },
+        { status: 400 }
+      );
+    }
+
+    if (!AIR_QUALITY_API_KEY) {
+      return NextResponse.json(
+        { error: 'Air quality API key not configured' },
+        { status: 500 }
+      );
+    }
+
+    const params = new URLSearchParams({
+      format: 'application/json',
+      latitude: latitude,
+      longitude: longitude,
+      distance: '25',
+      API_KEY: AIR_QUALITY_API_KEY
+    });
+
+    const response = await fetch(`${AIRNOW_BASE_URL}?${params.toString()}`);
+    
+    if (!response.ok) {
+      throw new Error(`AirNow API responded with status: ${response.status}`);
+    }
+
+    const data = await response.json();
+    return NextResponse.json(data);
+
+  } catch (error) {
+    console.error('Air quality API error:', error);
+    return NextResponse.json(
+      { error: 'Failed to fetch air quality data' },
+      { status: 500 }
+    );
+  }
 } 

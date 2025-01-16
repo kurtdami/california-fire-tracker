@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { RefreshCw, AlertTriangle, Flame } from 'lucide-react';
 import { LoadingSpinner } from '@/components/LoadingSpinner';
+import AirQualityDisplay from '@/components/AirQualityDisplay';
 import { calculateDistance } from '@/utils/distance';
 import type { FireData, FireFeature, EvacuationData, EvacuationFeature } from '@/types';
 import { Analytics } from '@vercel/analytics/react';
@@ -37,6 +38,7 @@ export default function Home() {
   const [locationError, setLocationError] = useState<string>('');
   const [fireData, setFireData] = useState<FireFeature[]>([]);
   const [evacuationData, setEvacuationData] = useState<EvacuationFeature[]>([]);
+  const [airQualityData, setAirQualityData] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string>('');
   const [computationStats, setComputationStats] = useState<{
@@ -101,6 +103,18 @@ export default function Home() {
     );
   };
 
+  const fetchAirQualityData = async (lat: number, lon: number) => {
+    try {
+      const response = await fetch(`/api/air-quality?latitude=${lat}&longitude=${lon}`);
+      if (!response.ok) throw new Error('Failed to fetch air quality data');
+      const data = await response.json();
+      setAirQualityData(data);
+    } catch (err) {
+      console.error('Air quality data fetch error:', err);
+      setError((prev) => prev ? `${prev}. Also failed to fetch air quality data` : 'Failed to fetch air quality data');
+    }
+  };
+
   useEffect(() => {
     getLocation();
     fetchFireData();
@@ -129,7 +143,7 @@ export default function Home() {
 
   useEffect(() => {
     if (location && evacuationData.length > 0) {
-      const startTime = performance.now();
+      const startTime = Date.now();
       let totalPoints = 0;
 
       // First find the closest evacuation zone to the user
@@ -200,7 +214,7 @@ export default function Home() {
         });
       }
 
-      const endTime = performance.now();
+      const endTime = Date.now();
       setComputationStats({
         totalPoints,
         computationTime: endTime - startTime
@@ -208,10 +222,19 @@ export default function Home() {
     }
   }, [location, evacuationData, fireData]);
 
+  useEffect(() => {
+    if (location) {
+      fetchAirQualityData(location.coords.latitude, location.coords.longitude);
+    }
+  }, [location]);
+
   const handleRefresh = () => {
     getLocation();
     fetchFireData();
     fetchEvacuationData();
+    if (location) {
+      fetchAirQualityData(location.coords.latitude, location.coords.longitude);
+    }
   };
 
   if (loading) {
@@ -249,6 +272,13 @@ export default function Home() {
             <RefreshCw className="w-5 h-5" />
           </button>
         </div>
+
+        {/* Add Air Quality Display */}
+        {airQualityData.length > 0 && (
+          <div className="mb-6">
+            <AirQualityDisplay airQualityData={airQualityData} />
+          </div>
+        )}
 
         <p className="text-gray-400 text-xs italic mb-6">
           Note: Evacuation zone distances are more accurate as they consider the actual affected area boundaries.

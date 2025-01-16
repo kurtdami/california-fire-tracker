@@ -5,7 +5,7 @@ import type { EvacuationData } from '@/types';
 export const runtime = 'edge';
 
 export async function GET(request: Request) {
-  const startTime = performance.now();
+  const startTime = Date.now();
   const requestId = Math.random().toString(36).substring(7);
 
   try {
@@ -37,7 +37,7 @@ export async function GET(request: Request) {
     );
 
     // Log performance and cache status
-    const endTime = performance.now();
+    const endTime = Date.now();
     const duration = Math.round(endTime - startTime);
     const cacheStatus = response.headers.get('x-vercel-cache') || 'MISS';
     console.log(`[Evac API] [${requestId}] Completed in ${duration}ms | Cache: ${cacheStatus} | Active Zones: ${activeEvacuations.length}`);
