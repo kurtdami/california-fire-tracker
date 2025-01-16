@@ -1,3 +1,5 @@
+import { NextResponse } from 'next/server';
+
 /**
  * Air Quality API Route - DISABLED
  * To be implemented later after initial deployment
@@ -9,15 +11,13 @@
  * 4. Test thoroughly
  */
 
-/*
-import { NextResponse } from 'next/server';
-
-export async function GET(request: Request) {
+// Temporary disabled route that returns 501 Not Implemented
+export async function GET() {
   return NextResponse.json(
     { 
-      error: 'Air quality API not yet implemented'
+      error: 'Air quality API not yet implemented',
+      status: 'disabled'
     },
     { status: 501 }
   );
-}
-*/ 
+} 
