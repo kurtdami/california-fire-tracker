@@ -1,7 +1,6 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  output: 'standalone',
-  distDir: '.next',
+  distDir: 'dist',
   images: {
     domains: ['incidents.fire.ca.gov'],
   },
