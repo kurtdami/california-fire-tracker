@@ -66,7 +66,7 @@ export async function GET(request: NextRequest) {
         'Content-Type': 'application/json',
         // Use Vary header to ensure cache varies by location
         'Vary': 'x-vercel-ip-latitude, x-vercel-ip-longitude',
-        // Cache for 30 minutes
+        // Cache for 1 hour
         'Cache-Control': 'max-age=0',
         'CDN-Cache-Control': `public, s-maxage=${CACHE_DURATION}, stale-while-revalidate`,
         'Vercel-CDN-Cache-Control': `public, s-maxage=${CACHE_DURATION}, stale-while-revalidate`,
