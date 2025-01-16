@@ -1,89 +1,36 @@
-# California Fire Tracker 🔥
-
-A real-time web application that helps users track active fires and evacuation orders in California based on their current location.
-
-## Features
-
-- 📍 Real-time distance calculation to nearest fires and evacuation zones
-- ⚠️ Immediate alerts for evacuation orders within 5 miles
-- 🗺️ Accurate distance measurements using evacuation zone boundaries
-- 🔄 Live data updates from official California fire and evacuation sources
-- 📱 Responsive design for both desktop and mobile devices
-- ⚡ Fast computation of distances to thousands of boundary points
-- 🕒 Timestamp tracking for latest evacuation order updates
-
-## Technical Stack
-
-- **Frontend Framework**: React with TypeScript
-- **Styling**: Tailwind CSS
-- **Build Tool**: Vite
-- **Icons**: Lucide React
-- **Data Sources**:
-  - California Fire Incidents API
-  - Evacuation Zones API
+This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
 
 ## Getting Started
 
-### Prerequisites
+First, run the development server:
 
-- Node.js (v18 or higher)
-- npm (v9 or higher)
-
-### Installation
-
-1. Clone the repository
-```bash
-git clone https://github.com/kurtdami/california-fire-tracker.git
-cd california-fire-tracker
-```
-
-2. Install dependencies
-```bash
-npm install
-```
-
-3. Start the development server
 ```bash
 npm run dev
+# or
+yarn dev
+# or
+pnpm dev
+# or
+bun dev
 ```
 
-4. Open your browser and navigate to `http://localhost:5173`
+Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
 
-### Building for Production
+You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
 
-```bash
-npm run build
-```
+This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
 
-## How It Works
+## Learn More
 
-The application:
-1. Retrieves user's current location (with permission)
-2. Fetches active fire data from California Fire Incidents API
-3. Fetches evacuation order data from Evacuation Zones API
-4. Calculates distances to nearest fires and evacuation zones
-5. Displays warnings if evacuation zones are within 5 miles
-6. Updates data periodically to ensure latest information
+To learn more about Next.js, take a look at the following resources:
 
-## Performance
+- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
+- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
 
-- Efficiently processes thousands of evacuation zone boundary points
-- Displays computation statistics for transparency
-- Optimized distance calculations for quick results
+You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
 
-## Privacy
+## Deploy on Vercel
 
-- Location data is used only for distance calculations
-- No personal data is stored or transmitted
-- All calculations are performed client-side
+The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
 
-## License
-
-Private repository - All rights reserved
-
-## Acknowledgments
-
-- California Fire Incidents API
-- Evacuation Zones API
-- React and Vite communities
-- Tailwind CSS team 
+Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.

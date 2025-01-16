@@ -42,4 +42,4 @@ export interface EvacuationFeature {
 export interface EvacuationData {
   type: string;
   features: EvacuationFeature[];
-}
+} 
