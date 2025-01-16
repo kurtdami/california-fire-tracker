@@ -5,6 +5,61 @@ const CACHE_DURATION = 3600;
 
 export const runtime = 'edge';
 
+async function fetchAQICNData(latitude: string, longitude: string) {
+  const apiKey = process.env.AQICN_API_KEY;
+  if (!apiKey) {
+    throw new Error('AQICN_API_KEY is not configured');
+  }
+
+  const url = `https://api.waqi.info/feed/geo:${latitude};${longitude}/?token=${apiKey}`;
+  const response = await fetch(url, {
+    headers: {
+      'Content-Type': 'application/json',
+    },
+  });
+
+  if (!response.ok) {
+    throw new Error(`AQICN API error: ${response.status}`);
+  }
+
+  const data = await response.json();
+  if (data.status === 'error' || !data.data || data.data === 'Unknown station') {
+    return null;
+  }
+
+  // Map AQI value to AirNow category
+  let category = {
+    Number: 1,
+    Name: 'Good'
+  };
+  const aqi = data.data.aqi;
+  if (aqi > 300) {
+    category = { Number: 6, Name: 'Hazardous' };
+  } else if (aqi > 200) {
+    category = { Number: 5, Name: 'Very Unhealthy' };
+  } else if (aqi > 150) {
+    category = { Number: 4, Name: 'Unhealthy' };
+  } else if (aqi > 100) {
+    category = { Number: 3, Name: 'Unhealthy for Sensitive Groups' };
+  } else if (aqi > 50) {
+    category = { Number: 2, Name: 'Moderate' };
+  }
+
+  // Transform AQICN data to match AirNow format
+  return [{
+    DateObserved: data.data.time.iso.split('T')[0],
+    HourObserved: parseInt(data.data.time.iso.split('T')[1].split(':')[0]),
+    LocalTimeZone: data.data.time.tz,
+    ReportingArea: data.data.city?.name || 'Unknown',
+    StateCode: 'INT', // International
+    Latitude: latitude,
+    Longitude: longitude,
+    ParameterName: data.data.dominentpol?.toUpperCase() || 'PM2.5',
+    AQI: data.data.aqi,
+    Category: category
+  }];
+}
+
 export async function GET(request: NextRequest) {
   try {
     const searchParams = request.nextUrl.searchParams;
@@ -19,8 +74,8 @@ export async function GET(request: NextRequest) {
     }
 
     // Add check for API key
-    const apiKey = process.env.AIR_QUALITY_API_KEY;
-    if (!apiKey) {
+    const airNowApiKey = process.env.AIR_QUALITY_API_KEY;
+    if (!airNowApiKey) {
       console.error('AIR_QUALITY_API_KEY is not configured');
       return NextResponse.json(
         { error: 'API configuration error' },
@@ -37,36 +92,49 @@ export async function GET(request: NextRequest) {
     console.log('Cache grid coordinates:', { roundedLat, roundedLng });
     console.log('Original coordinates:', { latitude, longitude });
 
-    const url = `https://www.airnowapi.org/aq/observation/latLong/current/?format=application/json&latitude=${latitude}&longitude=${longitude}&distance=25&API_KEY=${apiKey}`;
+    const airNowUrl = `https://www.airnowapi.org/aq/observation/latLong/current/?format=application/json&latitude=${latitude}&longitude=${longitude}&distance=25&API_KEY=${airNowApiKey}`;
 
-    const response = await fetch(url, {
+    const airNowResponse = await fetch(airNowUrl, {
       headers: {
         'Content-Type': 'application/json',
       },
       next: {
         revalidate: CACHE_DURATION,
-        tags: [cacheKey] // Add cache tag for this specific location
+        tags: [cacheKey]
       }
     });
 
-    console.log('AirNow API response status:', response.status);
+    console.log('AirNow API response status:', airNowResponse.status);
     
-    if (!response.ok) {
-      const errorText = await response.text();
+    if (!airNowResponse.ok) {
+      const errorText = await airNowResponse.text();
       console.error('AirNow API error response:', errorText);
-      throw new Error(`Failed to fetch air quality data: ${response.status} ${errorText}`);
+      throw new Error(`Failed to fetch air quality data: ${airNowResponse.status} ${errorText}`);
     }
 
-    const data = await response.json();
-    console.log('AirNow API data received:', data);
+    const airNowData = await airNowResponse.json();
+    console.log('AirNow API data received:', airNowData);
 
-    return new NextResponse(JSON.stringify(data), {
+    // If AirNow returns no data, try AQICN as fallback
+    let finalData = airNowData;
+    if (!airNowData || airNowData.length === 0) {
+      console.log('No AirNow data available, trying AQICN fallback');
+      try {
+        const aqicnData = await fetchAQICNData(latitude, longitude);
+        if (aqicnData) {
+          finalData = aqicnData;
+          console.log('Using AQICN data:', aqicnData);
+        }
+      } catch (aqicnError) {
+        console.error('AQICN fallback failed:', aqicnError);
+      }
+    }
+
+    return new NextResponse(JSON.stringify(finalData), {
       status: 200,
       headers: {
         'Content-Type': 'application/json',
-        // Use Vary header to ensure cache varies by location
         'Vary': 'x-vercel-ip-latitude, x-vercel-ip-longitude',
-        // Cache for 1 hour
         'Cache-Control': 'max-age=0',
         'CDN-Cache-Control': `public, s-maxage=${CACHE_DURATION}, stale-while-revalidate`,
         'Vercel-CDN-Cache-Control': `public, s-maxage=${CACHE_DURATION}, stale-while-revalidate`,
