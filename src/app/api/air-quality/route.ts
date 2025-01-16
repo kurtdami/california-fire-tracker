@@ -23,7 +23,16 @@ async function fetchAQICNData(latitude: string, longitude: string) {
   }
 
   const data = await response.json();
-  if (data.status === 'error' || !data.data || data.data === 'Unknown station') {
+  
+  // Enhanced validation for AQICN data
+  if (
+    data.status === 'error' || 
+    !data.data || 
+    data.data === 'Unknown station' ||
+    typeof data.data.aqi !== 'number' ||
+    isNaN(data.data.aqi)
+  ) {
+    console.log('Invalid or missing AQICN data:', data);
     return null;
   }
 

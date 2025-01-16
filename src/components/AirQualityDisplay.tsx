@@ -88,6 +88,7 @@ export default function AirQualityDisplay({ lat, lng }: AirQualityDisplayProps) 
     const fetchAQIData = async () => {
       try {
         setLoading(true);
+        setError(null); // Reset error state
         const fp = await FingerprintJS.load()
         const { visitorId } = await fp.get()
 
@@ -104,10 +105,29 @@ export default function AirQualityDisplay({ lat, lng }: AirQualityDisplayProps) 
         }
 
         const data = await response.json();
-        setAqiData(data);
+        
+        // Validate that we have valid data
+        if (!Array.isArray(data) || data.length === 0) {
+          throw new Error('No air quality data available for this location');
+        }
+
+        // Validate that we have valid AQI values
+        const validData = data.filter(item => 
+          item && 
+          typeof item.AQI === 'number' && 
+          !isNaN(item.AQI) &&
+          item.Category?.Name
+        );
+
+        if (validData.length === 0) {
+          throw new Error('No valid air quality measurements available');
+        }
+
+        setAqiData(validData);
       } catch (err) {
         console.error('AQI fetch error:', err);
         setError(err instanceof Error ? err.message : 'Failed to fetch AQI data');
+        setAqiData([]); // Clear any previous data
       } finally {
         setLoading(false);
       }
