@@ -1,6 +1,9 @@
 import { NextResponse } from 'next/server';
 import type { EvacuationData } from '@/types';
 
+// Make this an Edge Function for better latency
+export const runtime = 'edge';
+
 export async function GET(request: Request) {
   const startTime = performance.now();
   const requestId = Math.random().toString(36).substring(7);
@@ -12,7 +15,7 @@ export async function GET(request: Request) {
       process.env.NEXT_PUBLIC_EVACUATION_API_URL as string,
       {
         next: {
-          revalidate: 3600,
+          revalidate: 3600, // Cache for 60 minutes
           tags: ['evacuations']
         },
         headers: {

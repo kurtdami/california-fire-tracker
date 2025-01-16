@@ -1,6 +1,9 @@
 import { NextResponse } from 'next/server';
 import type { FireData } from '@/types';
 
+// Add this to make it an Edge Function
+export const runtime = 'edge';
+
 export async function GET(request: Request) {
   const startTime = performance.now();
   const requestId = Math.random().toString(36).substring(7);
