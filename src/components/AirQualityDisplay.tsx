@@ -73,15 +73,33 @@ export default function AirQualityDisplay({ lat, lng }: AirQualityDisplayProps) 
   };
 
   const getMainAQI = (data: AirQualityData[]): { aqi: number; category: string; isInternational: boolean } => {
+    if (!data || data.length === 0) {
+      return { aqi: 0, category: 'Good', isInternational: false };
+    }
+
     // Try PM25 first (AQICN format), then PM2.5 (AirNow format)
     const pm25Data = data.find(item => item.ParameterName === 'PM25' || item.ParameterName === 'PM2.5');
-    return pm25Data 
-      ? { 
-          aqi: pm25Data.AQI, 
-          category: pm25Data.Category.Name,
-          isInternational: pm25Data.StateCode === 'INT'
+    
+    if (pm25Data) {
+      return { 
+        aqi: pm25Data.AQI, 
+        category: pm25Data.Category.Name,
+        isInternational: pm25Data.StateCode === 'INT'
+      };
+    }
+
+    // If no PM2.5 data, find the measurement with the highest AQI
+    const highestAQI = data.reduce((max: AirQualityData | null, item: AirQualityData) => {
+      return (!max || item.AQI > max.AQI) ? item : max;
+    }, null);
+
+    return highestAQI 
+      ? {
+          aqi: highestAQI.AQI,
+          category: highestAQI.Category.Name,
+          isInternational: highestAQI.StateCode === 'INT'
         }
-      : { aqi: 0, category: 'N/A', isInternational: false };
+      : { aqi: 0, category: 'Good', isInternational: false };
   };
 
   useEffect(() => {
