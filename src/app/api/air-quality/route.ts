@@ -3,6 +3,9 @@ import { NextRequest, NextResponse } from 'next/server';
 // Cache duration in seconds (1 hour = 3600 seconds)
 const CACHE_DURATION = 3600;
 
+// Add revalidate for Next.js route segment config
+export const revalidate = CACHE_DURATION;
+
 export const runtime = 'edge';
 
 async function fetchAQICNData(latitude: string, longitude: string) {
@@ -143,10 +146,13 @@ export async function GET(request: NextRequest) {
       status: 200,
       headers: {
         'Content-Type': 'application/json',
+        // Browser cache
+        'Cache-Control': `public, max-age=${CACHE_DURATION}`,
+        // Vercel Edge Network cache
+        's-maxage': CACHE_DURATION.toString(),
+        'stale-while-revalidate': '59',
+        // Vary header for proper cache keys based on location
         'Vary': 'x-vercel-ip-latitude, x-vercel-ip-longitude',
-        'Cache-Control': 'max-age=0',
-        'CDN-Cache-Control': `public, s-maxage=${CACHE_DURATION}, stale-while-revalidate`,
-        'Vercel-CDN-Cache-Control': `public, s-maxage=${CACHE_DURATION}, stale-while-revalidate`,
       },
     });
 
