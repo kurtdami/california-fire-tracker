@@ -144,8 +144,8 @@ export async function GET(request: NextRequest) {
       headers: {
         'Content-Type': 'application/json',
         'Cache-Control': 'public, max-age=0',
-        'Vercel-CDN-Cache-Control': `public, s-maxage=${CACHE_DURATION}, stale-while-revalidate=59`,
-        'Vary': 'Accept-Encoding, deviceId',
+        'CDN-Cache-Control': `public, s-maxage=${CACHE_DURATION}`,
+        'Vercel-CDN-Cache-Control': `public, s-maxage=${CACHE_DURATION}, stale-while-revalidate=86400`,
       },
     });
 
