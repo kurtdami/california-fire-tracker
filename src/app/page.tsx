@@ -98,43 +98,43 @@ export default function Home() {
       return;
     }
 
-    const options = {
-      enableHighAccuracy: true,
-      timeout: 10000,  // 10 seconds
-      maximumAge: 0
-    };
+    // Clear any existing location error when starting a new request
+    setLocationError('');
+    
+    // Set a timeout to show the error message only if geolocation takes too long
+    const timeoutId = setTimeout(() => {
+      if (!location) {
+        setLocationError('Unable to retrieve your location. Please ensure location services are enabled.');
+      }
+    }, 10000); // 10 second timeout
 
     navigator.geolocation.getCurrentPosition(
       (position) => {
+        clearTimeout(timeoutId);
         setLocation(position);
         setLocationError('');
-        // If we have location, fetch air quality data
-        if (position?.coords) {
-          fetchAirQualityData(position.coords.latitude, position.coords.longitude).catch(console.error);
-        }
       },
       (error) => {
-        console.error('Geolocation error:', error);
+        clearTimeout(timeoutId);
         switch (error.code) {
           case error.PERMISSION_DENIED:
-            setLocationError('Please enable location services to get local fire and air quality information.');
+            setLocationError('Location permission denied. Please enable location services to see air quality data.');
             break;
           case error.POSITION_UNAVAILABLE:
-            setLocationError('Location information is currently unavailable. Please try again.');
-            // Retry after 2 seconds if position is unavailable
-            setTimeout(getLocation, 2000);
+            setLocationError('Location information is unavailable.');
             break;
           case error.TIMEOUT:
-            setLocationError('Location request timed out. Retrying...');
-            // Retry immediately if it was just a timeout
-            getLocation();
+            setLocationError('Location request timed out.');
             break;
           default:
-            setLocationError('An unknown error occurred while getting location.');
-            break;
+            setLocationError('An unknown error occurred while retrieving location.');
         }
       },
-      options
+      {
+        enableHighAccuracy: true,
+        timeout: 10000,
+        maximumAge: 0
+      }
     );
   };
 
@@ -327,7 +327,10 @@ export default function Home() {
     }
   };
 
-  if (loading) {
+  // Modify the initial loading check to only apply on first load
+  const isInitialLoading = loading && !fireData.length && !evacuationData.length && !airQualityData.length;
+
+  if (isInitialLoading) {
     return (
       <div className="min-h-screen bg-gray-100 p-4">
         <div className="max-w-3xl mx-auto bg-white rounded-2xl shadow p-8">
@@ -361,12 +364,22 @@ export default function Home() {
           </button>
         </div>
 
-        {/* Add Air Quality Display with its own loading state */}
+        {/* Only show location error if we've been waiting for a while and still don't have location */}
+        {locationError && !location && (
+          <div className="text-red-700 mb-4 p-4 bg-red-50 rounded-lg border border-red-200">
+            {locationError}
+          </div>
+        )}
+
+        {/* Air Quality Section - Show loading spinner only in its card */}
         {location && (
           <div className="mb-6">
             {loadingAqi ? (
-              <div className="flex justify-center w-full">
-                <LoadingSpinner />
+              <div className="bg-white border border-gray-200 rounded-lg p-4">
+                <h3 className="text-xl font-bold mb-4">Air Quality</h3>
+                <div className="flex justify-center w-full">
+                  <LoadingSpinner />
+                </div>
               </div>
             ) : (
               <AirQualityDisplay 
@@ -381,10 +394,13 @@ export default function Home() {
           Note: Evacuation zone distances are more accurate as they consider the actual affected area boundaries.
         </p>
 
-        {/* Rest of the JSX with component-specific loading states */}
-        {loadingFires || loadingEvac ? (
-          <div className="flex justify-center w-full my-4">
-            <LoadingSpinner />
+        {/* Evacuation Zones Section - Show loading spinner only in its card */}
+        {loadingEvac ? (
+          <div className="bg-gray-100 border border-gray-300 rounded-lg p-4 mb-4">
+            <h3 className="text-xl font-bold mb-4">Evacuation Zones</h3>
+            <div className="flex justify-center w-full">
+              <LoadingSpinner />
+            </div>
           </div>
         ) : (
           <>
@@ -392,12 +408,6 @@ export default function Home() {
               <div className="text-red-700 mb-4 flex items-center gap-2">
                 <AlertTriangle className="text-red-700" />
                 {error}
-              </div>
-            )}
-
-            {locationError && (
-              <div className="text-red-700 mb-4">
-                {locationError}
               </div>
             )}
 
@@ -474,55 +484,65 @@ export default function Home() {
                 </div>
               </div>
             )}
-
-            {closestFire && (
-              <div className="bg-gray-100 border border-gray-300 rounded-lg p-4 mb-4">
-                <h3 className="text-xl font-bold mb-4">Nearest Active Fire</h3>
-                
-                <div className="space-y-2 text-sm pl-4">
-                  <p className="flex">
-                    <span className="font-bold">Name:</span>
-                    <span className="ml-2">{closestFire.fire.properties.Name}</span>
-                  </p>
-                  <p className="flex">
-                    <span className="font-bold">Distance:</span>
-                    <span className="ml-2">{closestFire.distance.toFixed(1)} miles</span>
-                  </p>
-                  <p className="flex">
-                    <span className="font-bold">Location:</span>
-                    <span className="ml-2">Near {closestFire.fire.properties.Location}</span>
-                  </p>
-                  <p className="flex">
-                    <span className="font-bold">County:</span>
-                    <span className="ml-2">{closestFire.fire.properties.County}</span>
-                  </p>
-                  <p className="flex">
-                    <span className="font-bold">Acres Burned:</span>
-                    <span className="ml-2">{closestFire.fire.properties.AcresBurned.toLocaleString()}</span>
-                  </p>
-                  <p className="flex">
-                    <span className="font-bold">Containment:</span>
-                    <span className="ml-2">{closestFire.fire.properties.PercentContained}%</span>
-                  </p>
-                  <p className="flex">
-                    <span className="font-bold">Started:</span>
-                    <span className="ml-2">{new Date(closestFire.fire.properties.Started).toLocaleDateString('en-US', {
-                      month: 'numeric',
-                      day: 'numeric',
-                      year: 'numeric'
-                    })}</span>
-                  </p>
-                </div>
-              </div>
-            )}
-
-            <p className="text-gray-400 text-xs">
-              Showing data for {fireData.filter(f => f.properties.IsActive).length} active fires and {evacuationData.length} fire-related evacuation zones in California
-              <br />
-              Calculated distances to {computationStats?.totalPoints.toLocaleString()} evacuation zone points in {computationStats?.computationTime.toFixed(1)}ms
-            </p>
           </>
         )}
+
+        {/* Fires Section - Show loading spinner only in its card */}
+        {loadingFires ? (
+          <div className="bg-gray-100 border border-gray-300 rounded-lg p-4 mb-4">
+            <h3 className="text-xl font-bold mb-4">Active Fires</h3>
+            <div className="flex justify-center w-full">
+              <LoadingSpinner />
+            </div>
+          </div>
+        ) : (
+          closestFire && (
+            <div className="bg-gray-100 border border-gray-300 rounded-lg p-4 mb-4">
+              <h3 className="text-xl font-bold mb-4">Nearest Active Fire</h3>
+              
+              <div className="space-y-2 text-sm pl-4">
+                <p className="flex">
+                  <span className="font-bold">Name:</span>
+                  <span className="ml-2">{closestFire.fire.properties.Name}</span>
+                </p>
+                <p className="flex">
+                  <span className="font-bold">Distance:</span>
+                  <span className="ml-2">{closestFire.distance.toFixed(1)} miles</span>
+                </p>
+                <p className="flex">
+                  <span className="font-bold">Location:</span>
+                  <span className="ml-2">Near {closestFire.fire.properties.Location}</span>
+                </p>
+                <p className="flex">
+                  <span className="font-bold">County:</span>
+                  <span className="ml-2">{closestFire.fire.properties.County}</span>
+                </p>
+                <p className="flex">
+                  <span className="font-bold">Acres Burned:</span>
+                  <span className="ml-2">{closestFire.fire.properties.AcresBurned.toLocaleString()}</span>
+                </p>
+                <p className="flex">
+                  <span className="font-bold">Containment:</span>
+                  <span className="ml-2">{closestFire.fire.properties.PercentContained}%</span>
+                </p>
+                <p className="flex">
+                  <span className="font-bold">Started:</span>
+                  <span className="ml-2">{new Date(closestFire.fire.properties.Started).toLocaleDateString('en-US', {
+                    month: 'numeric',
+                    day: 'numeric',
+                    year: 'numeric'
+                  })}</span>
+                </p>
+              </div>
+            </div>
+          )
+        )}
+
+        <p className="text-gray-400 text-xs">
+          Showing data for {fireData.filter(f => f.properties.IsActive).length} active fires and {evacuationData.length} fire-related evacuation zones in California
+          <br />
+          Calculated distances to {computationStats?.totalPoints.toLocaleString()} evacuation zone points in {computationStats?.computationTime.toFixed(1)}ms
+        </p>
       </div>
     </div>
   );
