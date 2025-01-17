@@ -104,7 +104,7 @@ export async function GET(request: NextRequest) {
     console.log('Cache grid coordinates:', { roundedLat, roundedLng });
     console.log('Original coordinates:', { latitude, longitude });
 
-    const airNowUrl = `https://www.airnowapi.org/aq/observation/latLong/current/?format=application/json&latitude=${roundedLat}&longitude=${roundedLng}&distance=25&API_KEY=${airNowApiKey}`;
+    const airNowUrl = `https://www.airnowapi.org/aq/observation/latLong/current/?format=application/json&latitude=${latitude}&longitude=${longitude}&distance=25&API_KEY=${airNowApiKey}`;
 
     const airNowResponse = await fetch(airNowUrl, {
       headers: {
