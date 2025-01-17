@@ -150,7 +150,7 @@ export default function AirQualityDisplay({ lat, lng }: AirQualityDisplayProps) 
       <div className="bg-white rounded-lg px-5 py-4 shadow-lg max-w-[300px] w-full border border-gray-100 hover:border-gray-200 transition-all">
         <div className="flex justify-between items-center mb-1">
           <div className="text-lg font-semibold text-black">Current AQI</div>
-          <div className="text-xs text-gray-500">via {isInternational ? 'AQICN' : 'AirNow'}</div>
+          <div className="text-xs text-gray-400 italic">via {isInternational ? 'AQICN' : 'AirNow'}</div>
         </div>
 
         <div className="flex justify-between items-start">
