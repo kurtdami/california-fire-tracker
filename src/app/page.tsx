@@ -38,12 +38,10 @@ export default function Home() {
   const [locationError, setLocationError] = useState<string>('');
   const [fireData, setFireData] = useState<FireFeature[]>([]);
   const [evacuationData, setEvacuationData] = useState<EvacuationFeature[]>([]);
-  const [airQualityData, setAirQualityData] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   // Add component-specific loading states
   const [loadingFires, setLoadingFires] = useState(true);
   const [loadingEvac, setLoadingEvac] = useState(true);
-  const [loadingAqi, setLoadingAqi] = useState(true);
   const [error, setError] = useState<string>('');
   const [computationStats, setComputationStats] = useState<{
     totalPoints: number;
@@ -150,36 +148,10 @@ export default function Home() {
     };
   };
 
-  const fetchAirQualityData = async (latitude: number, longitude: number) => {
-    try {
-      setLoadingAqi(true);
-      const response = await fetch(
-        `/api/air-quality?lat=${latitude}&lng=${longitude}`,
-        {
-          cache: 'force-cache'
-        }
-      );
-
-      if (!response.ok) {
-        throw new Error('Failed to fetch air quality data');
-      }
-
-      const data = await response.json();
-      setAirQualityData(data);
-      return data;
-    } catch (error) {
-      console.error('Air quality data fetch error:', error);
-      setError((prev) => prev ? `${prev}. Also failed to fetch air quality data` : 'Failed to fetch air quality data');
-      throw error;
-    } finally {
-      setLoadingAqi(false);
-    }
-  };
-
   // Set overall loading state based on component loading states
   useEffect(() => {
-    setLoading(loadingFires || loadingEvac || loadingAqi);
-  }, [loadingFires, loadingEvac, loadingAqi]);
+    setLoading(loadingFires || loadingEvac);
+  }, [loadingFires, loadingEvac]);
 
   useEffect(() => {
     let mounted = true;
@@ -202,23 +174,6 @@ export default function Home() {
       mounted = false;
     };
   }, []);
-
-  useEffect(() => {
-    let mounted = true;
-
-    if (location?.coords) {
-      fetchAirQualityData(location.coords.latitude, location.coords.longitude)
-        .catch(error => {
-          if (mounted) {
-            console.error('Error fetching air quality data:', error);
-          }
-        });
-    }
-
-    return () => {
-      mounted = false;
-    };
-  }, [location]);
 
   useEffect(() => {
     if (location && fireData.length > 0) {
@@ -329,9 +284,6 @@ export default function Home() {
         fetchFireData(),
         fetchEvacuationData()
       ]);
-      if (location?.coords) {
-        await fetchAirQualityData(location.coords.latitude, location.coords.longitude);
-      }
     } catch (error) {
       console.error('Error refreshing data:', error);
     } finally {
@@ -340,7 +292,7 @@ export default function Home() {
   };
 
   // Modify the initial loading check to only apply on first load
-  const isInitialLoading = loading && !fireData.length && !evacuationData.length && !airQualityData.length;
+  const isInitialLoading = loading && !fireData.length && !evacuationData.length;
 
   if (isInitialLoading) {
     return (
@@ -388,7 +340,7 @@ export default function Home() {
             {/* Air Quality Section */}
             {location && (
               <div className="mb-4">
-                {loadingAqi ? (
+                {loading ? (
                   <div className="bg-white border border-gray-200 rounded-lg p-3">
                     <h3 className="text-xl font-bold mb-3">Air Quality</h3>
                     <div className="flex justify-center w-full">
