@@ -96,23 +96,19 @@ export async function GET(request: NextRequest) {
     }
 
     // Create a unique cache key based on coordinates
-    // Round coordinates to 1 decimal place to create a ~4 mile grid
-    const roundedLat = Number(latitude).toFixed(1); // ~4.3 miles at equator
-    const roundedLng = Number(longitude).toFixed(1);
+    // Round coordinates to 2 decimal places to create a ~2 mile grid
+    const roundedLat = Number(latitude).toFixed(2);
+    const roundedLng = Number(longitude).toFixed(2);
     const cacheKey = `aqi-${roundedLat}-${roundedLng}`;
 
     console.log('Cache grid coordinates:', { roundedLat, roundedLng });
     console.log('Original coordinates:', { latitude, longitude });
 
-    const airNowUrl = `https://www.airnowapi.org/aq/observation/latLong/current/?format=application/json&latitude=${latitude}&longitude=${longitude}&distance=25&API_KEY=${airNowApiKey}`;
+    const airNowUrl = `https://www.airnowapi.org/aq/observation/latLong/current/?format=application/json&latitude=${roundedLat}&longitude=${roundedLng}&distance=25&API_KEY=${airNowApiKey}`;
 
     const airNowResponse = await fetch(airNowUrl, {
       headers: {
         'Content-Type': 'application/json',
-      },
-      next: {
-        revalidate: CACHE_DURATION,
-        tags: [cacheKey]
       }
     });
 
@@ -146,13 +142,7 @@ export async function GET(request: NextRequest) {
       status: 200,
       headers: {
         'Content-Type': 'application/json',
-        // Browser cache
-        'Cache-Control': `public, max-age=${CACHE_DURATION}`,
-        // Vercel Edge Network cache
-        's-maxage': CACHE_DURATION.toString(),
-        'stale-while-revalidate': '59',
-        // Vary header for proper cache keys based on location
-        'Vary': 'x-vercel-ip-latitude, x-vercel-ip-longitude',
+        'Cache-Control': `public, s-maxage=${CACHE_DURATION}, stale-while-revalidate`,
       },
     });
 
