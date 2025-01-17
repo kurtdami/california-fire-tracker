@@ -95,13 +95,14 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Create a unique cache key based on coordinates
+    // Create a unique cache key based on coordinates and deviceId
     // Round coordinates to 2 decimal places to create a ~2 mile grid
     const roundedLat = Number(latitude).toFixed(2);
     const roundedLng = Number(longitude).toFixed(2);
-    const cacheKey = `aqi-${roundedLat}-${roundedLng}`;
+    const deviceId = searchParams.get('deviceId') || 'anonymous';
+    const cacheKey = `aqi-${roundedLat}-${roundedLng}-${deviceId}`;
 
-    console.log('Cache grid coordinates:', { roundedLat, roundedLng });
+    console.log('Cache grid coordinates:', { roundedLat, roundedLng, deviceId });
     console.log('Original coordinates:', { latitude, longitude });
 
     const airNowUrl = `https://www.airnowapi.org/aq/observation/latLong/current/?format=application/json&latitude=${latitude}&longitude=${longitude}&distance=25&API_KEY=${airNowApiKey}`;
@@ -143,6 +144,7 @@ export async function GET(request: NextRequest) {
       headers: {
         'Content-Type': 'application/json',
         'Cache-Control': `public, s-maxage=${CACHE_DURATION}, stale-while-revalidate`,
+        'Vary': 'deviceId',
       },
     });
 
