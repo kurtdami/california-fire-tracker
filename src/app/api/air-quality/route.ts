@@ -77,10 +77,12 @@ export async function GET(request: NextRequest) {
     const searchParams = request.nextUrl.searchParams;
     const latitude = searchParams.get('lat');
     const longitude = searchParams.get('lng');
+    const exactLat = searchParams.get('exactLat');
+    const exactLng = searchParams.get('exactLng');
 
-    if (!latitude || !longitude) {
+    if (!latitude || !longitude || !exactLat || !exactLng) {
       return NextResponse.json(
-        { error: 'Latitude and longitude are required parameters' },
+        { error: 'Latitude and longitude (both rounded and exact) are required parameters' },
         { status: 400 }
       );
     }
@@ -95,16 +97,11 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Create a unique cache key based on rounded coordinates (2 decimal places for ~2 mile grid)
-    const roundedLat = Number(latitude).toFixed(2);
-    const roundedLng = Number(longitude).toFixed(2);
-    const deviceId = searchParams.get('deviceId') || 'anonymous';
-    
-    // Always use exact coordinates for external API calls
-    const airNowUrl = `https://www.airnowapi.org/aq/observation/latLong/current/?format=application/json&latitude=${latitude}&longitude=${longitude}&distance=25&API_KEY=${airNowApiKey}`;
+    // Use exact coordinates for external API calls
+    const airNowUrl = `https://www.airnowapi.org/aq/observation/latLong/current/?format=application/json&latitude=${exactLat}&longitude=${exactLng}&distance=25&API_KEY=${airNowApiKey}`;
 
-    console.log('Cache grid coordinates:', { roundedLat, roundedLng });
-    console.log('Fetching with exact coordinates:', { latitude, longitude });
+    console.log('Cache coordinates (rounded):', { latitude, longitude });
+    console.log('Fetching with exact coordinates:', { exactLat, exactLng });
     
     let airNowResponse = await fetch(airNowUrl, {
       headers: {
@@ -125,7 +122,7 @@ export async function GET(request: NextRequest) {
     if (!airNowData || airNowData.length === 0) {
       console.log('No AirNow data available, trying AQICN fallback');
       try {
-        const aqicnData = await fetchAQICNData(latitude, longitude);
+        const aqicnData = await fetchAQICNData(exactLat, exactLng);
         if (aqicnData) {
           finalData = aqicnData;
           console.log('Using AQICN data:', aqicnData);
@@ -134,9 +131,6 @@ export async function GET(request: NextRequest) {
         console.error('AQICN fallback failed:', aqicnError);
       }
     }
-
-    // Use rounded coordinates in cache key for better cache hits
-    const cacheKey = `aqi-${roundedLat}-${roundedLng}`;
     
     return new NextResponse(JSON.stringify(finalData), {
       status: 200,
@@ -145,7 +139,6 @@ export async function GET(request: NextRequest) {
         'Cache-Control': 'public, max-age=0',
         'CDN-Cache-Control': `public, s-maxage=${CACHE_DURATION}`,
         'Vercel-CDN-Cache-Control': `public, s-maxage=${CACHE_DURATION}, stale-while-revalidate=60`,
-        'x-cache-key': cacheKey, // Add cache key to response for debugging
       },
     });
 
