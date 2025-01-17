@@ -75,14 +75,12 @@ async function fetchAQICNData(latitude: string, longitude: string) {
 export async function GET(request: NextRequest) {
   try {
     const searchParams = request.nextUrl.searchParams;
-    const latitude = searchParams.get('lat');
-    const longitude = searchParams.get('lng');
-    const exactLat = searchParams.get('exactLat');
-    const exactLng = searchParams.get('exactLng');
+    const latitude = searchParams.get('lat'); // Already rounded from frontend
+    const longitude = searchParams.get('lng'); // Already rounded from frontend
 
-    if (!latitude || !longitude || !exactLat || !exactLng) {
+    if (!latitude || !longitude) {
       return NextResponse.json(
-        { error: 'Latitude and longitude (both rounded and exact) are required parameters' },
+        { error: 'Latitude and longitude are required parameters' },
         { status: 400 }
       );
     }
@@ -97,32 +95,52 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Use exact coordinates for external API calls
-    const airNowUrl = `https://www.airnowapi.org/aq/observation/latLong/current/?format=application/json&latitude=${exactLat}&longitude=${exactLng}&distance=25&API_KEY=${airNowApiKey}`;
+    // First try with the rounded coordinates
+    const roundedUrl = `https://www.airnowapi.org/aq/observation/latLong/current/?format=application/json&latitude=${latitude}&longitude=${longitude}&distance=25&API_KEY=${airNowApiKey}`;
 
-    console.log('Cache coordinates (rounded):', { latitude, longitude });
-    console.log('Fetching with exact coordinates:', { exactLat, exactLng });
+    console.log('Trying with rounded coordinates:', { latitude, longitude });
     
-    let airNowResponse = await fetch(airNowUrl, {
+    let airNowResponse = await fetch(roundedUrl, {
       headers: {
         'Content-Type': 'application/json',
       }
     });
 
-    if (!airNowResponse.ok) {
-      const errorText = await airNowResponse.text();
-      console.error('AirNow API error response:', errorText);
-      throw new Error(`Failed to fetch air quality data: ${airNowResponse.status} ${errorText}`);
+    let airNowData = await airNowResponse.json();
+
+    // If no data found with rounded coordinates, try with slightly expanded search
+    if (!airNowResponse.ok || !airNowData || airNowData.length === 0) {
+      console.log('No data with rounded coordinates, trying expanded search');
+      
+      // Convert to number and add/subtract small amount to expand search area
+      const lat = parseFloat(latitude);
+      const lng = parseFloat(longitude);
+      const expandedLat = (lat + 0.01).toFixed(2); // Expand by ~1km
+      const expandedLng = (lng + 0.01).toFixed(2);
+
+      const expandedUrl = `https://www.airnowapi.org/aq/observation/latLong/current/?format=application/json&latitude=${expandedLat}&longitude=${expandedLng}&distance=25&API_KEY=${airNowApiKey}`;
+      
+      airNowResponse = await fetch(expandedUrl, {
+        headers: {
+          'Content-Type': 'application/json',
+        }
+      });
+
+      if (!airNowResponse.ok) {
+        const errorText = await airNowResponse.text();
+        console.error('AirNow API error response:', errorText);
+        throw new Error(`Failed to fetch air quality data: ${airNowResponse.status} ${errorText}`);
+      }
+
+      airNowData = await airNowResponse.json();
     }
 
-    const airNowData = await airNowResponse.json();
-
-    // If no data, try AQICN as fallback
+    // If still no data, try AQICN as fallback
     let finalData = airNowData;
     if (!airNowData || airNowData.length === 0) {
       console.log('No AirNow data available, trying AQICN fallback');
       try {
-        const aqicnData = await fetchAQICNData(exactLat, exactLng);
+        const aqicnData = await fetchAQICNData(latitude, longitude);
         if (aqicnData) {
           finalData = aqicnData;
           console.log('Using AQICN data:', aqicnData);

@@ -115,7 +115,7 @@ export default function AirQualityDisplay({ lat, lng }: AirQualityDisplayProps) 
         const roundedLng = Number(lng).toFixed(2);
 
         const response = await fetch(
-          `/api/air-quality?lat=${roundedLat}&lng=${roundedLng}&exactLat=${lat}&exactLng=${lng}&deviceId=${visitorId}`,
+          `/api/air-quality?lat=${roundedLat}&lng=${roundedLng}&deviceId=${visitorId}`,
           {
             cache: 'force-cache',
           }
