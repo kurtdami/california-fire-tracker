@@ -95,45 +95,32 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Create a unique cache key based on coordinates and deviceId
-    // Round coordinates to 2 decimal places to create a ~2 mile grid
+    // Create a unique cache key based on rounded coordinates (2 decimal places for ~2 mile grid)
     const roundedLat = Number(latitude).toFixed(2);
     const roundedLng = Number(longitude).toFixed(2);
     const deviceId = searchParams.get('deviceId') || 'anonymous';
     
-    // First try to fetch using rounded coordinates for better cache hits
-    const roundedUrl = `https://www.airnowapi.org/aq/observation/latLong/current/?format=application/json&latitude=${roundedLat}&longitude=${roundedLng}&distance=25&API_KEY=${airNowApiKey}`;
+    // Always use exact coordinates for external API calls
+    const airNowUrl = `https://www.airnowapi.org/aq/observation/latLong/current/?format=application/json&latitude=${latitude}&longitude=${longitude}&distance=25&API_KEY=${airNowApiKey}`;
 
-    console.log('Trying rounded coordinates first:', { roundedLat, roundedLng });
+    console.log('Cache grid coordinates:', { roundedLat, roundedLng });
+    console.log('Fetching with exact coordinates:', { latitude, longitude });
     
-    let airNowResponse = await fetch(roundedUrl, {
+    let airNowResponse = await fetch(airNowUrl, {
       headers: {
         'Content-Type': 'application/json',
       }
     });
 
-    // If no data with rounded coordinates, try exact coordinates
-    let airNowData = await airNowResponse.json();
-    if (!airNowResponse.ok || !airNowData || airNowData.length === 0) {
-      console.log('No data with rounded coordinates, trying exact coordinates');
-      const exactUrl = `https://www.airnowapi.org/aq/observation/latLong/current/?format=application/json&latitude=${latitude}&longitude=${longitude}&distance=25&API_KEY=${airNowApiKey}`;
-      
-      airNowResponse = await fetch(exactUrl, {
-        headers: {
-          'Content-Type': 'application/json',
-        }
-      });
-
-      if (!airNowResponse.ok) {
-        const errorText = await airNowResponse.text();
-        console.error('AirNow API error response:', errorText);
-        throw new Error(`Failed to fetch air quality data: ${airNowResponse.status} ${errorText}`);
-      }
-
-      airNowData = await airNowResponse.json();
+    if (!airNowResponse.ok) {
+      const errorText = await airNowResponse.text();
+      console.error('AirNow API error response:', errorText);
+      throw new Error(`Failed to fetch air quality data: ${airNowResponse.status} ${errorText}`);
     }
 
-    // If still no data, try AQICN as fallback
+    const airNowData = await airNowResponse.json();
+
+    // If no data, try AQICN as fallback
     let finalData = airNowData;
     if (!airNowData || airNowData.length === 0) {
       console.log('No AirNow data available, trying AQICN fallback');
@@ -148,6 +135,9 @@ export async function GET(request: NextRequest) {
       }
     }
 
+    // Use rounded coordinates in cache key for better cache hits
+    const cacheKey = `aqi-${roundedLat}-${roundedLng}`;
+    
     return new NextResponse(JSON.stringify(finalData), {
       status: 200,
       headers: {
@@ -155,6 +145,7 @@ export async function GET(request: NextRequest) {
         'Cache-Control': 'public, max-age=0',
         'CDN-Cache-Control': `public, s-maxage=${CACHE_DURATION}`,
         'Vercel-CDN-Cache-Control': `public, s-maxage=${CACHE_DURATION}, stale-while-revalidate=60`,
+        'x-cache-key': cacheKey, // Add cache key to response for debugging
       },
     });
 
