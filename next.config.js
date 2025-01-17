@@ -3,12 +3,27 @@ const nextConfig = {
   images: {
     domains: ['incidents.fire.ca.gov'],
   },
-  distDir: '.next',
-  // Ensure output is handled correctly for Vercel
-  output: 'standalone',
-  // Enable edge runtime
-  experimental: {
-    runtime: 'edge',
+  // Add headers configuration
+  async headers() {
+    return [
+      {
+        source: '/api/:path*',
+        headers: [
+          {
+            key: 'Cache-Control',
+            value: 'public, s-maxage=3600, stale-while-revalidate=60',
+          },
+          {
+            key: 'Vercel-CDN-Cache-Control',
+            value: 'public, s-maxage=3600',
+          },
+          {
+            key: 'CDN-Cache-Control',
+            value: 'public, s-maxage=3600',
+          },
+        ],
+      },
+    ];
   },
 };
 

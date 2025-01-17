@@ -98,15 +98,43 @@ export default function Home() {
       return;
     }
 
+    const options = {
+      enableHighAccuracy: true,
+      timeout: 10000,  // 10 seconds
+      maximumAge: 0
+    };
+
     navigator.geolocation.getCurrentPosition(
       (position) => {
         setLocation(position);
         setLocationError('');
+        // If we have location, fetch air quality data
+        if (position?.coords) {
+          fetchAirQualityData(position.coords.latitude, position.coords.longitude).catch(console.error);
+        }
       },
       (error) => {
-        setLocationError('Unable to retrieve your location');
         console.error('Geolocation error:', error);
-      }
+        switch (error.code) {
+          case error.PERMISSION_DENIED:
+            setLocationError('Please enable location services to get local fire and air quality information.');
+            break;
+          case error.POSITION_UNAVAILABLE:
+            setLocationError('Location information is currently unavailable. Please try again.');
+            // Retry after 2 seconds if position is unavailable
+            setTimeout(getLocation, 2000);
+            break;
+          case error.TIMEOUT:
+            setLocationError('Location request timed out. Retrying...');
+            // Retry immediately if it was just a timeout
+            getLocation();
+            break;
+          default:
+            setLocationError('An unknown error occurred while getting location.');
+            break;
+        }
+      },
+      options
     );
   };
 
@@ -142,10 +170,43 @@ export default function Home() {
   }, [loadingFires, loadingEvac, loadingAqi]);
 
   useEffect(() => {
+    let mounted = true;
+
+    const fetchInitialData = async () => {
+      try {
+        await Promise.all([
+          fetchFireData(),
+          fetchEvacuationData()
+        ]);
+      } catch (error) {
+        console.error('Error fetching initial data:', error);
+      }
+    };
+
     getLocation();
-    fetchFireData();
-    fetchEvacuationData();
+    fetchInitialData();
+
+    return () => {
+      mounted = false;
+    };
   }, []);
+
+  useEffect(() => {
+    let mounted = true;
+
+    if (location?.coords) {
+      fetchAirQualityData(location.coords.latitude, location.coords.longitude)
+        .catch(error => {
+          if (mounted) {
+            console.error('Error fetching air quality data:', error);
+          }
+        });
+    }
+
+    return () => {
+      mounted = false;
+    };
+  }, [location]);
 
   useEffect(() => {
     if (location && fireData.length > 0) {
@@ -248,18 +309,21 @@ export default function Home() {
     }
   }, [location, evacuationData, fireData]);
 
-  useEffect(() => {
-    if (location) {
-      fetchAirQualityData(location.coords.latitude, location.coords.longitude);
-    }
-  }, [location]);
-
-  const handleRefresh = () => {
-    getLocation();
-    fetchFireData();
-    fetchEvacuationData();
-    if (location) {
-      fetchAirQualityData(location.coords.latitude, location.coords.longitude);
+  const handleRefresh = async () => {
+    try {
+      setLoading(true);
+      getLocation();
+      await Promise.all([
+        fetchFireData(),
+        fetchEvacuationData()
+      ]);
+      if (location?.coords) {
+        await fetchAirQualityData(location.coords.latitude, location.coords.longitude);
+      }
+    } catch (error) {
+      console.error('Error refreshing data:', error);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -282,8 +346,6 @@ export default function Home() {
 
   return (
     <div className="min-h-screen bg-gray-50 p-4">
-      <Analytics />
-      <SpeedInsights />
       <div className="max-w-2xl mx-auto bg-white rounded-lg shadow-md p-6">
         <div className="flex justify-between items-center mb-4">
           <div className="flex items-center gap-2">

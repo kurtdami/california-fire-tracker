@@ -14,12 +14,10 @@ export async function GET(request: Request) {
     const response = await fetch(
       `${process.env.NEXT_PUBLIC_FIRE_API_URL}?inactive=true`,
       {
-        next: {
-          revalidate: 3600,
-          tags: ['fires']
-        },
         headers: {
-          'Cache-Control': 'public, s-maxage=3600, stale-while-revalidate'
+          'Cache-Control': 'public, s-maxage=3600, stale-while-revalidate=60',
+          'Vercel-CDN-Cache-Control': 'public, s-maxage=3600',
+          'CDN-Cache-Control': 'public, s-maxage=3600'
         }
       }
     );
@@ -44,7 +42,9 @@ export async function GET(request: Request) {
       { features: activeFires },
       {
         headers: {
-          'Cache-Control': 'public, s-maxage=3600, stale-while-revalidate',
+          'Cache-Control': 'public, s-maxage=3600, stale-while-revalidate=60',
+          'Vercel-CDN-Cache-Control': 'public, s-maxage=3600',
+          'CDN-Cache-Control': 'public, s-maxage=3600',
           'X-Response-Time': duration.toString(),
           'X-Cache-Status': cacheStatus
         },

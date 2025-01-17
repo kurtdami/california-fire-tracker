@@ -14,12 +14,10 @@ export async function GET(request: Request) {
     const response = await fetch(
       process.env.NEXT_PUBLIC_EVACUATION_API_URL as string,
       {
-        next: {
-          revalidate: 3600, // Cache for 60 minutes
-          tags: ['evacuations']
-        },
         headers: {
-          'Cache-Control': 'public, s-maxage=3600, stale-while-revalidate'
+          'Cache-Control': 'public, s-maxage=3600, stale-while-revalidate=60',
+          'Vercel-CDN-Cache-Control': 'public, s-maxage=3600',
+          'CDN-Cache-Control': 'public, s-maxage=3600'
         }
       }
     );
@@ -46,7 +44,9 @@ export async function GET(request: Request) {
       { features: activeEvacuations },
       {
         headers: {
-          'Cache-Control': 'public, s-maxage=3600, stale-while-revalidate',
+          'Cache-Control': 'public, s-maxage=3600, stale-while-revalidate=60',
+          'Vercel-CDN-Cache-Control': 'public, s-maxage=3600',
+          'CDN-Cache-Control': 'public, s-maxage=3600',
           'X-Response-Time': duration.toString(),
           'X-Cache-Status': cacheStatus
         },
