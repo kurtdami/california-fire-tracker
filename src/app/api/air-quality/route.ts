@@ -100,31 +100,40 @@ export async function GET(request: NextRequest) {
     const roundedLat = Number(latitude).toFixed(2);
     const roundedLng = Number(longitude).toFixed(2);
     const deviceId = searchParams.get('deviceId') || 'anonymous';
-    const cacheKey = `aqi-${roundedLat}-${roundedLng}-${deviceId}`;
+    
+    // First try to fetch using rounded coordinates for better cache hits
+    const roundedUrl = `https://www.airnowapi.org/aq/observation/latLong/current/?format=application/json&latitude=${roundedLat}&longitude=${roundedLng}&distance=25&API_KEY=${airNowApiKey}`;
 
-    console.log('Cache grid coordinates:', { roundedLat, roundedLng, deviceId });
-    console.log('Original coordinates:', { latitude, longitude });
-
-    const airNowUrl = `https://www.airnowapi.org/aq/observation/latLong/current/?format=application/json&latitude=${latitude}&longitude=${longitude}&distance=25&API_KEY=${airNowApiKey}`;
-
-    const airNowResponse = await fetch(airNowUrl, {
+    console.log('Trying rounded coordinates first:', { roundedLat, roundedLng });
+    
+    let airNowResponse = await fetch(roundedUrl, {
       headers: {
         'Content-Type': 'application/json',
       }
     });
 
-    console.log('AirNow API response status:', airNowResponse.status);
-    
-    if (!airNowResponse.ok) {
-      const errorText = await airNowResponse.text();
-      console.error('AirNow API error response:', errorText);
-      throw new Error(`Failed to fetch air quality data: ${airNowResponse.status} ${errorText}`);
+    // If no data with rounded coordinates, try exact coordinates
+    let airNowData = await airNowResponse.json();
+    if (!airNowResponse.ok || !airNowData || airNowData.length === 0) {
+      console.log('No data with rounded coordinates, trying exact coordinates');
+      const exactUrl = `https://www.airnowapi.org/aq/observation/latLong/current/?format=application/json&latitude=${latitude}&longitude=${longitude}&distance=25&API_KEY=${airNowApiKey}`;
+      
+      airNowResponse = await fetch(exactUrl, {
+        headers: {
+          'Content-Type': 'application/json',
+        }
+      });
+
+      if (!airNowResponse.ok) {
+        const errorText = await airNowResponse.text();
+        console.error('AirNow API error response:', errorText);
+        throw new Error(`Failed to fetch air quality data: ${airNowResponse.status} ${errorText}`);
+      }
+
+      airNowData = await airNowResponse.json();
     }
 
-    const airNowData = await airNowResponse.json();
-    console.log('AirNow API data received:', airNowData);
-
-    // If AirNow returns no data, try AQICN as fallback
+    // If still no data, try AQICN as fallback
     let finalData = airNowData;
     if (!airNowData || airNowData.length === 0) {
       console.log('No AirNow data available, trying AQICN fallback');
