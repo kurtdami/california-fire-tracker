@@ -550,6 +550,25 @@ export default function Home() {
           )
         )}
 
+        {/* Fire Map Section */}
+        <div className="bg-white border border-gray-200 rounded-lg p-4 mb-4">
+          <h3 className="text-xl font-bold mb-4 flex items-center">
+            <Flame className="mr-2 text-red-500" />
+            Active Fire Map
+          </h3>
+          <div className="w-full overflow-hidden rounded-lg">
+            <iframe 
+              width="100%" 
+              height="600" 
+              frameBorder="0" 
+              scrolling="no" 
+              allowFullScreen 
+              src="https://arcg.is/0PyWqy1"
+              className="rounded-lg"
+            />
+          </div>
+        </div>
+
         <p className="text-gray-400 text-xs">
           Showing data for {fireData.filter(f => f.properties.IsActive).length} active fires and {evacuationData.length} fire-related evacuation zones in California
           <br />
