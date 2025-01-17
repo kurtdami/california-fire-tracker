@@ -101,34 +101,34 @@ export default function Home() {
     // Clear any existing location error when starting a new request
     setLocationError('');
     
-    // Set a timeout to show the error message only if geolocation takes too long
-    const timeoutId = setTimeout(() => {
-      if (!location) {
-        setLocationError('Unable to retrieve your location. Please ensure location services are enabled.');
-      }
-    }, 10000); // 10 second timeout
-
+    let errorTimeoutId: NodeJS.Timeout;
+    
     navigator.geolocation.getCurrentPosition(
       (position) => {
-        clearTimeout(timeoutId);
+        if (errorTimeoutId) clearTimeout(errorTimeoutId);
         setLocation(position);
         setLocationError('');
       },
       (error) => {
-        clearTimeout(timeoutId);
-        switch (error.code) {
-          case error.PERMISSION_DENIED:
-            setLocationError('Location permission denied. Please enable location services to see air quality data.');
-            break;
-          case error.POSITION_UNAVAILABLE:
-            setLocationError('Location information is unavailable.');
-            break;
-          case error.TIMEOUT:
-            setLocationError('Location request timed out.');
-            break;
-          default:
-            setLocationError('An unknown error occurred while retrieving location.');
-        }
+        // Add a longer delay and only show error after initial data is loaded
+        errorTimeoutId = setTimeout(() => {
+          // Only show error if we still don't have location AND initial data is loaded
+          if (!location && fireData.length > 0 && evacuationData.length > 0) {
+            switch (error.code) {
+              case error.PERMISSION_DENIED:
+                setLocationError('Location permission denied. Please enable location services to see air quality data.');
+                break;
+              case error.POSITION_UNAVAILABLE:
+                setLocationError('Location information is unavailable.');
+                break;
+              case error.TIMEOUT:
+                setLocationError('Location request timed out.');
+                break;
+              default:
+                setLocationError('Unable to retrieve your location. Please ensure location services are enabled.');
+            }
+          }
+        }, 5000);  // Increased to 5 second delay before showing errors
       },
       {
         enableHighAccuracy: true,
@@ -136,6 +136,18 @@ export default function Home() {
         maximumAge: 0
       }
     );
+
+    // Set a timeout to show the error message only if geolocation takes too long
+    const timeoutId = setTimeout(() => {
+      if (!location && fireData.length > 0 && evacuationData.length > 0) {
+        setLocationError('Unable to retrieve your location. Please ensure location services are enabled.');
+      }
+    }, 15000); // Increased to 15 second timeout
+
+    return () => {
+      if (errorTimeoutId) clearTimeout(errorTimeoutId);
+      clearTimeout(timeoutId);
+    };
   };
 
   const fetchAirQualityData = async (latitude: number, longitude: number) => {
@@ -364,8 +376,8 @@ export default function Home() {
           </button>
         </div>
 
-        {/* Only show location error if we've been waiting for a while and still don't have location */}
-        {locationError && !location && (
+        {/* Only show location error if we've been waiting for a while, don't have location, AND initial data is loaded */}
+        {locationError && !location && fireData.length > 0 && evacuationData.length > 0 && (
           <div className="text-red-700 mb-4 p-4 bg-red-50 rounded-lg border border-red-200">
             {locationError}
           </div>
