@@ -110,27 +110,35 @@ export default function AirQualityDisplay({ lat, lng }: AirQualityDisplayProps) 
         const fp = await FingerprintJS.load()
         const { visitorId } = await fp.get()
 
-        // First get exact coordinates
-        const exactLat = lat;
-        const exactLng = lng;
-        
-        // Round them for cache checking
-        const roundedLat = Number(exactLat).toFixed(2);
-        const roundedLng = Number(exactLng).toFixed(2);
+        // First try with rounded coordinates for cache
+        const roundedLat = Number(lat).toFixed(2);
+        const roundedLng = Number(lng).toFixed(2);
 
-        const response = await fetch(
-          `/api/air-quality?lat=${roundedLat}&lng=${roundedLng}&exactLat=${exactLat}&exactLng=${exactLng}&deviceId=${visitorId}`,
+        // Try cache first with rounded coordinates
+        let response = await fetch(
+          `/api/air-quality?lat=${roundedLat}&lng=${roundedLng}&type=cached`,
           {
             cache: 'force-cache',
           }
-        )
+        );
 
-        if (!response.ok) {
-          const errorData = await response.json();
-          throw new Error(errorData.error || 'Failed to fetch AQI data');
+        let data = await response.json();
+
+        // If no data with rounded coordinates, try exact coordinates
+        if (!response.ok || !data || (Array.isArray(data) && data.length === 0)) {
+          console.log('No data with rounded coordinates, trying exact coordinates');
+          response = await fetch(
+            `/api/air-quality?lat=${lat}&lng=${lng}&type=exact`,
+            {
+              cache: 'no-store', // Don't cache exact coordinate requests
+            }
+          );
+          data = await response.json();
         }
 
-        const data = await response.json();
+        if (!response.ok) {
+          throw new Error(data.error || 'Failed to fetch AQI data');
+        }
         
         // Validate that we have valid data
         if (!Array.isArray(data) || data.length === 0) {
