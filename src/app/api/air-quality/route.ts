@@ -75,12 +75,16 @@ async function fetchAQICNData(latitude: string, longitude: string) {
 export async function GET(request: NextRequest) {
   try {
     const searchParams = request.nextUrl.searchParams;
-    const latitude = searchParams.get('lat'); // Already rounded from frontend
-    const longitude = searchParams.get('lng'); // Already rounded from frontend
+    
+    // Get both rounded (for cache) and exact coordinates
+    const roundedLat = searchParams.get('lat');
+    const roundedLng = searchParams.get('lng');
+    const exactLat = searchParams.get('exactLat');
+    const exactLng = searchParams.get('exactLng');
 
-    if (!latitude || !longitude) {
+    if (!roundedLat || !roundedLng || !exactLat || !exactLng) {
       return NextResponse.json(
-        { error: 'Latitude and longitude are required parameters' },
+        { error: 'Both rounded and exact coordinates are required' },
         { status: 400 }
       );
     }
@@ -95,70 +99,87 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // First try with the rounded coordinates
-    const roundedUrl = `https://www.airnowapi.org/aq/observation/latLong/current/?format=application/json&latitude=${latitude}&longitude=${longitude}&distance=25&API_KEY=${airNowApiKey}`;
-
-    console.log('Trying with rounded coordinates:', { latitude, longitude });
+    // Workflow:
+    // 1. Try with rounded coordinates (cache check happens at Vercel edge)
+    // 2. If no data, use exact coordinates
+    // 3. If still no data, try AQICN fallback
     
-    let airNowResponse = await fetch(roundedUrl, {
-      headers: {
-        'Content-Type': 'application/json',
-      }
+    let airNowResponse;
+    let airNowData;
+
+    // Step 1: Try with rounded coordinates (Vercel edge will check cache)
+    console.log('Checking cache with rounded coordinates:', { roundedLat, roundedLng });
+    const roundedUrl = `https://www.airnowapi.org/aq/observation/latLong/current/?format=application/json&latitude=${roundedLat}&longitude=${roundedLng}&distance=25&API_KEY=${airNowApiKey}`;
+    
+    airNowResponse = await fetch(roundedUrl, {
+      headers: { 'Content-Type': 'application/json' }
     });
-
-    let airNowData = await airNowResponse.json();
-
-    // If no data found with rounded coordinates, try with exact coordinates
-    if (!airNowResponse.ok || !airNowData || airNowData.length === 0) {
-      console.log('No data with rounded coordinates, trying exact coordinates');
-      
-      // Get exact coordinates from the original location
-      const exactLat = searchParams.get('exactLat');
-      const exactLng = searchParams.get('exactLng');
-
-      if (exactLat && exactLng) {
-        const exactUrl = `https://www.airnowapi.org/aq/observation/latLong/current/?format=application/json&latitude=${exactLat}&longitude=${exactLng}&distance=25&API_KEY=${airNowApiKey}`;
-        
-        airNowResponse = await fetch(exactUrl, {
+    
+    if (airNowResponse.ok) {
+      airNowData = await airNowResponse.json();
+      if (airNowData && airNowData.length > 0) {
+        console.log('Got data with rounded coordinates');
+        return new NextResponse(JSON.stringify(airNowData), {
+          status: 200,
           headers: {
             'Content-Type': 'application/json',
-          }
+            'Cache-Control': 'public, max-age=0',
+            'CDN-Cache-Control': `public, s-maxage=${CACHE_DURATION}`,
+            'Vercel-CDN-Cache-Control': `public, s-maxage=${CACHE_DURATION}, stale-while-revalidate=60`,
+          },
         });
-
-        if (!airNowResponse.ok) {
-          const errorText = await airNowResponse.text();
-          console.error('AirNow API error response:', errorText);
-          throw new Error(`Failed to fetch air quality data: ${airNowResponse.status} ${errorText}`);
-        }
-
-        airNowData = await airNowResponse.json();
       }
     }
 
-    // If still no data, try AQICN as fallback
-    let finalData = airNowData;
-    if (!airNowData || airNowData.length === 0) {
-      console.log('No AirNow data available, trying AQICN fallback');
-      try {
-        const aqicnData = await fetchAQICNData(latitude, longitude);
-        if (aqicnData) {
-          finalData = aqicnData;
-          console.log('Using AQICN data:', aqicnData);
-        }
-      } catch (aqicnError) {
-        console.error('AQICN fallback failed:', aqicnError);
-      }
-    }
+    // Step 2: No data with rounded coordinates, try exact coordinates
+    console.log('No data with rounded coordinates, trying exact coordinates:', { exactLat, exactLng });
+    const exactUrl = `https://www.airnowapi.org/aq/observation/latLong/current/?format=application/json&latitude=${exactLat}&longitude=${exactLng}&distance=25&API_KEY=${airNowApiKey}`;
     
-    return new NextResponse(JSON.stringify(finalData), {
-      status: 200,
-      headers: {
-        'Content-Type': 'application/json',
-        'Cache-Control': 'public, max-age=0',
-        'CDN-Cache-Control': `public, s-maxage=${CACHE_DURATION}`,
-        'Vercel-CDN-Cache-Control': `public, s-maxage=${CACHE_DURATION}, stale-while-revalidate=60`,
-      },
+    airNowResponse = await fetch(exactUrl, {
+      headers: { 'Content-Type': 'application/json' }
     });
+
+    if (airNowResponse.ok) {
+      airNowData = await airNowResponse.json();
+      if (airNowData && airNowData.length > 0) {
+        console.log('Got data with exact coordinates');
+        return new NextResponse(JSON.stringify(airNowData), {
+          status: 200,
+          headers: {
+            'Content-Type': 'application/json',
+            'Cache-Control': 'public, max-age=0',
+            'CDN-Cache-Control': `public, s-maxage=${CACHE_DURATION}`,
+            'Vercel-CDN-Cache-Control': `public, s-maxage=${CACHE_DURATION}, stale-while-revalidate=60`,
+          },
+        });
+      }
+    }
+
+    // Step 3: No AirNow data at all, try AQICN fallback
+    console.log('No AirNow data available, trying AQICN fallback');
+    try {
+      const aqicnData = await fetchAQICNData(exactLat, exactLng);
+      if (aqicnData) {
+        console.log('Got AQICN data');
+        return new NextResponse(JSON.stringify(aqicnData), {
+          status: 200,
+          headers: {
+            'Content-Type': 'application/json',
+            'Cache-Control': 'public, max-age=0',
+            'CDN-Cache-Control': `public, s-maxage=${CACHE_DURATION}`,
+            'Vercel-CDN-Cache-Control': `public, s-maxage=${CACHE_DURATION}, stale-while-revalidate=60`,
+          },
+        });
+      }
+    } catch (aqicnError) {
+      console.error('AQICN fallback failed:', aqicnError);
+    }
+
+    // No data from any source
+    return NextResponse.json(
+      { error: 'No air quality data available for this location' },
+      { status: 404 }
+    );
 
   } catch (error) {
     console.error('Error fetching air quality data:', error);

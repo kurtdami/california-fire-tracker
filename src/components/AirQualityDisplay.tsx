@@ -106,16 +106,20 @@ export default function AirQualityDisplay({ lat, lng }: AirQualityDisplayProps) 
     const fetchAQIData = async () => {
       try {
         setLoading(true);
-        setError(null); // Reset error state
+        setError(null);
         const fp = await FingerprintJS.load()
         const { visitorId } = await fp.get()
 
-        // Round coordinates for cache key but send exact coordinates for accuracy
-        const roundedLat = Number(lat).toFixed(2);
-        const roundedLng = Number(lng).toFixed(2);
+        // First get exact coordinates
+        const exactLat = lat;
+        const exactLng = lng;
+        
+        // Round them for cache checking
+        const roundedLat = Number(exactLat).toFixed(2);
+        const roundedLng = Number(exactLng).toFixed(2);
 
         const response = await fetch(
-          `/api/air-quality?lat=${roundedLat}&lng=${roundedLng}&exactLat=${lat}&exactLng=${lng}&deviceId=${visitorId}`,
+          `/api/air-quality?lat=${roundedLat}&lng=${roundedLng}&exactLat=${exactLat}&exactLng=${exactLng}&deviceId=${visitorId}`,
           {
             cache: 'force-cache',
           }
