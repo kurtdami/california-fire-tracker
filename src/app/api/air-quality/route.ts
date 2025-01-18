@@ -77,7 +77,7 @@ export async function GET(request: NextRequest) {
     const searchParams = request.nextUrl.searchParams;
     const latitude = searchParams.get('lat');
     const longitude = searchParams.get('lng');
-    const requestType = searchParams.get('type') || 'cached';
+    const requestType = searchParams.get('type') || 'check-cache';
 
     if (!latitude || !longitude) {
       return NextResponse.json(
@@ -120,13 +120,13 @@ export async function GET(request: NextRequest) {
         status: 200,
         headers: {
           'Content-Type': 'application/json',
-          // Only cache responses for rounded coordinates
-          ...(requestType === 'cached' ? {
+          // Cache headers for fresh data (from exact coordinates)
+          ...(requestType === 'fetch-fresh' ? {
             'Cache-Control': 'public, max-age=0',
             'CDN-Cache-Control': `public, s-maxage=${CACHE_DURATION}`,
             'Vercel-CDN-Cache-Control': `public, s-maxage=${CACHE_DURATION}, stale-while-revalidate=60`,
           } : {
-            'Cache-Control': 'no-store',
+            'Cache-Control': 'no-store', // Don't cache check-cache responses
           }),
         },
       });
@@ -142,13 +142,13 @@ export async function GET(request: NextRequest) {
           status: 200,
           headers: {
             'Content-Type': 'application/json',
-            // Only cache responses for rounded coordinates
-            ...(requestType === 'cached' ? {
+            // Cache headers for fresh data (from exact coordinates)
+            ...(requestType === 'fetch-fresh' ? {
               'Cache-Control': 'public, max-age=0',
               'CDN-Cache-Control': `public, s-maxage=${CACHE_DURATION}`,
               'Vercel-CDN-Cache-Control': `public, s-maxage=${CACHE_DURATION}, stale-while-revalidate=60`,
             } : {
-              'Cache-Control': 'no-store',
+              'Cache-Control': 'no-store', // Don't cache check-cache responses
             }),
           },
         });

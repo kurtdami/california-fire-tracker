@@ -110,13 +110,13 @@ export default function AirQualityDisplay({ lat, lng }: AirQualityDisplayProps) 
         const fp = await FingerprintJS.load()
         const { visitorId } = await fp.get()
 
-        // First try with rounded coordinates for cache
+        // Round coordinates for cache key
         const roundedLat = Number(lat).toFixed(2);
         const roundedLng = Number(lng).toFixed(2);
 
-        // Try cache first with rounded coordinates
+        // First check cache using rounded coordinates
         let response = await fetch(
-          `/api/air-quality?lat=${roundedLat}&lng=${roundedLng}&type=cached`,
+          `/api/air-quality?lat=${roundedLat}&lng=${roundedLng}&type=check-cache`,
           {
             cache: 'force-cache',
           }
@@ -124,13 +124,13 @@ export default function AirQualityDisplay({ lat, lng }: AirQualityDisplayProps) 
 
         let data = await response.json();
 
-        // If no data with rounded coordinates, try exact coordinates
+        // If no valid cached data, fetch fresh data with exact coordinates
         if (!response.ok || !data || (Array.isArray(data) && data.length === 0)) {
-          console.log('No data with rounded coordinates, trying exact coordinates');
+          console.log('No cached data, fetching fresh data with exact coordinates');
           response = await fetch(
-            `/api/air-quality?lat=${lat}&lng=${lng}&type=exact`,
+            `/api/air-quality?lat=${lat}&lng=${lng}&type=fetch-fresh`,
             {
-              cache: 'no-store', // Don't cache exact coordinate requests
+              cache: 'no-store', // Don't cache the request itself
             }
           );
           data = await response.json();
